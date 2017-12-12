@@ -9,6 +9,7 @@
 
 #ifndef NETWORKING_H
 #define NETWORKING_H
+#DEFINE PIPE_NAME "well_known_pipe"
 #define ACK "HOLA"
 
 #define HANDSHAKE_BUFFER_SIZE 10
