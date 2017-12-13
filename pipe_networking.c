@@ -11,23 +11,24 @@
   =========================*/
 int server_handshake(int *to_client) {
   int upstream;//FIFO FD
-  char * msg;//client fifo pipe
+  char msg[HANDSHAKE_BUFFER_SIZE];//client fifo pipe
   if(mkfifo(PIPE_NAME, 0644)){//create the fifo
     printf("%s\n", strerror(errno));
   }
   if((upstream = open(PIPE_NAME, O_RDONLY)) == -1){//open it, blocking until client forms connection
     printf("%s\n", strerror(errno));
   }
-  if(read(upstream, msg, sizeof(msg)) == -1){//read in the fifo name sent by client
+  if(read(upstream, msg, HANDSHAKE_BUFFER_SIZE) == -1){//read in the fifo name sent by client
     printf("%s\n", strerror(errno));
   }
-  if(!remove(PIPE_NAME)){//remove the fifo, making it an unnamed pipe
+  printf("%s\n", msg);
+  if(remove(PIPE_NAME)==-1){//remove the fifo, making it an unnamed pipe
     printf("%s\n", strerror(errno));
   }
   if((*to_client = open(msg, O_WRONLY)) == -1){//Connect to the client fifo
     printf("%s\n", strerror(errno));
   }
-  if((write(upstream, msg, sizeof(msg))) == -1){//write the msg back to the pipe
+  if((write(upstream, msg, HANDSHAKE_BUFFER_SIZE)) == -1){//write the msg back to the pipe
     printf("%s\n", strerror(errno));
   }
   return upstream;//Server has done its side of the handshake
@@ -46,15 +47,14 @@ int server_handshake(int *to_client) {
 int client_handshake(int *to_server) {
   srand(time(NULL));
   int fd, downstream;
-  char * private_pipe;
-  //sprintf(private_pipe, "%d", rand());
+  char * private_pipe[HANDSHAKE_BUFFER_SIZE];
   if (mkfifo(private_pipe, 0644)) { // Make private pipe
     printf("%s\n", strerror(errno));
   }
   if ((downstream = open(PIPE_NAME, O_WRONLY)) == -1) { // Open server pipe
     printf("%s\n", strerror(errno));
   }
-  if ((write(downstream, private_pipe, sizeof(private_pipe))) == -1) { // Write the private pipe name
+  if ((write(downstream, private_pipe, HANDSHAKE_BUFFER_SIZE)) == -1) { // Write the private pipe name
     printf("%s\n", strerror(errno));
   }
   if ((*to_server = open(private_pipe, O_RDONLY)) == -1) {
