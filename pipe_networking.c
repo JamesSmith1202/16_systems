@@ -10,6 +10,7 @@
   returns the file descriptor for the upstream pipe.
   =========================*/
 int server_handshake(int *to_client) {
+  int fd;
   int upstream;//FIFO FD
   long int * msg;//client fifo pipe
   if(mkfifo(PIPE_NAME, 0644)){//create the fifo
@@ -44,5 +45,18 @@ int server_handshake(int *to_client) {
   returns the file descriptor for the downstream pipe.
   =========================*/
 int client_handshake(int *to_server) {
+  srand(time(NULL));
+  int private_pipe = rand();
+  if (mkfifo(private_pipe, 0644)) {
+    printf("%s\n", strerror(errno));
+  }
+  if((upstream = open(PIPE_NAME, O_WRONLY)) == -1){
+    printf("%s\n", strerror(errno));
+  }
+  if (write(upstream, private_pipe, sizeof(private_pipe))) {
+    printf("%s\n", strerror(errno));
+  }
+  
+  
   return 0;
 }
