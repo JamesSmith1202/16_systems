@@ -18,18 +18,25 @@ int server_handshake(int *to_client) {
   if((upstream = open(PIPE_NAME, O_RDONLY)) == -1){//open it, blocking until client forms connection
     printf("%s\n", strerror(errno));
   }
-  if(read(upstream, msg, HANDSHAKE_BUFFER_SIZE) == -1){//read in the fifo name sent by client
+  if(read(upstream, msg, sizeof(msg)) == -1){//read in the fifo name sent by client
     printf("%s\n", strerror(errno));
   }
-  printf("%s\n", msg);
-  if(remove(PIPE_NAME)==-1){//remove the fifo, making it an unnamed pipe
+  printf("client msg: %s\n", msg);
+  if(remove(PIPE_NAME) == -1){//remove the fifo, making it an unnamed pipe
     printf("%s\n", strerror(errno));
   }
   if((*to_client = open(msg, O_WRONLY)) == -1){//Connect to the client fifo
     printf("%s\n", strerror(errno));
   }
-  if((write(upstream, msg, HANDSHAKE_BUFFER_SIZE)) == -1){//write the msg back to the pipe
+  strcpy(msg, ACK);
+  if((write(*to_client, msg, sizeof(msg))) == -1){//write the msg back to the pipe
     printf("%s\n", strerror(errno));
+  }
+  if ((read(upstream, msg, sizeof(msg))) == -1) {
+    printf("%s\n", strerror(errno));
+  }
+  if (!strcmp(msg, ACK)) {
+    printf("Connection established...\n");
   }
   return upstream;//Server has done its side of the handshake
 }
@@ -45,24 +52,33 @@ int server_handshake(int *to_client) {
   returns the file descriptor for the downstream pipe.
   =========================*/
 int client_handshake(int *to_server) {
-  srand(time(NULL));
-  int fd, downstream;
-  char * private_pipe[HANDSHAKE_BUFFER_SIZE];
+  int downstream;
+  char private_pipe[HANDSHAKE_BUFFER_SIZE], msg[HANDSHAKE_BUFFER_SIZE];
+  sprintf(private_pipe, "%d", getpid());
+  strcpy(msg, private_pipe);
+  printf("msg: %s\n", private_pipe);
   if (mkfifo(private_pipe, 0644)) { // Make private pipe
     printf("%s\n", strerror(errno));
   }
-  if ((downstream = open(PIPE_NAME, O_WRONLY)) == -1) { // Open server pipe
+  
+  if ((*to_server = open(PIPE_NAME, O_WRONLY)) == -1) {
     printf("%s\n", strerror(errno));
   }
-  if ((write(downstream, private_pipe, HANDSHAKE_BUFFER_SIZE)) == -1) { // Write the private pipe name
+  if ((write(*to_server, msg, sizeof(msg))) == -1) {
     printf("%s\n", strerror(errno));
   }
-  if ((*to_server = open(private_pipe, O_RDONLY)) == -1) {
+  if ((downstream = open(private_pipe, O_RDONLY)) == -1) { // Open private pipe
     printf("%s\n", strerror(errno));
   }
-  if (!remove(private_pipe)) { // Remove the private pipe
+  if ((read(downstream, msg, sizeof(msg))) == -1) { // Read from the private pipe
     printf("%s\n", strerror(errno));
   }
+  if (!strcmp(msg, ACK)) {
+    printf("Connection established...\n");
+  }
+  remove(private_pipe);  // Remove the private pipe
+
+  write(*to_server, msg, sizeof(msg));
   
   return downstream;
 }
