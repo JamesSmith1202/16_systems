@@ -10,15 +10,21 @@ int main() {
   while (1) {
     printf("Type your message: ");
     fgets(input, sizeof(input), stdin);
+
     
     // Replace newline
+    *strchr(input, '\n') = 0;
+    /*
     size_t length = strlen(input); 
     if (input[length - 1] == '\n') {
       input[length - 1] = '\0';
     }
+    */
+    
     
     write(to_server, input, sizeof(input));
     read(from_server, input, sizeof(input));
     printf("Received: %s\n", input);
   }
+  return 0;
 }

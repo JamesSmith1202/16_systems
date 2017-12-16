@@ -12,28 +12,35 @@
 int server_handshake(int *to_client) {
   int upstream;//FIFO FD
   char msg[HANDSHAKE_BUFFER_SIZE];//client fifo pipe
-  if(mkfifo(PIPE_NAME, 0644)){//create the fifo
+  if(mkfifo(PIPE_NAME, 0600)){//create the fifo
     printf("%s\n", strerror(errno));
+    exit(1);
   }
   if((upstream = open(PIPE_NAME, O_RDONLY)) == -1){//open it, blocking until client forms connection
     printf("%s\n", strerror(errno));
+    exit(1);
   }
   if(read(upstream, msg, sizeof(msg)) == -1){//read in the fifo name sent by client
     printf("%s\n", strerror(errno));
+    exit(1);
   }
   printf("client msg: %s\n", msg);
   if(remove(PIPE_NAME) == -1){//remove the fifo, making it an unnamed pipe
     printf("%s\n", strerror(errno));
+    exit(1);
   }
   if((*to_client = open(msg, O_WRONLY)) == -1){//Connect to the client fifo
     printf("%s\n", strerror(errno));
+    exit(1);
   }
   strcpy(msg, ACK);
   if((write(*to_client, msg, sizeof(msg))) == -1){//write the msg back to the pipe
     printf("%s\n", strerror(errno));
+    exit(1);
   }
   if ((read(upstream, msg, sizeof(msg))) == -1) {
     printf("%s\n", strerror(errno));
+    exit(1);
   }
   if (!strcmp(msg, ACK)) {
     printf("Connection established...\n");
@@ -54,16 +61,19 @@ int server_handshake(int *to_client) {
 int client_handshake(int *to_server) {
   int downstream;
   char private_pipe[HANDSHAKE_BUFFER_SIZE], msg[HANDSHAKE_BUFFER_SIZE];
-  sprintf(private_pipe, "%d", getpid());
-  strcpy(msg, private_pipe);
-  printf("msg: %s\n", private_pipe);
-  if (mkfifo(private_pipe, 0644)) { // Make private pipe
-    printf("%s\n", strerror(errno));
-  }
   
   if ((*to_server = open(PIPE_NAME, O_WRONLY)) == -1) {
     printf("%s\n", strerror(errno));
   }
+  
+  sprintf(private_pipe, "%d", getpid());
+  strcpy(msg, private_pipe);
+  printf("msg: %s\n", private_pipe);
+  
+  if (mkfifo(private_pipe, 0600)) { // Make private pipe
+    printf("%s\n", strerror(errno));
+  }
+  
   if ((write(*to_server, msg, sizeof(msg))) == -1) {
     printf("%s\n", strerror(errno));
   }
@@ -73,12 +83,12 @@ int client_handshake(int *to_server) {
   if ((read(downstream, msg, sizeof(msg))) == -1) { // Read from the private pipe
     printf("%s\n", strerror(errno));
   }
-  if (!strcmp(msg, ACK)) {
-    printf("Connection established...\n");
-  }
+  
   remove(private_pipe);  // Remove the private pipe
 
-  write(*to_server, msg, sizeof(msg));
-  
+  if ((write(*to_server, msg, sizeof(msg))) == -1) {
+    printf("%s\n", strerror(errno));
+  }
+   
   return downstream;
 }
